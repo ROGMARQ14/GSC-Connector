@@ -1,5 +1,7 @@
-google-api-python-client>=2.0.0
-google-auth-oauthlib>=0.4.0
-pandas>=1.0.0
-streamlit>=1.0.0
-searchconsole>=0.1.6
+streamlit>=1.22.0
+pandas>=1.5.0
+google-api-python-client>=2.80.0
+google-auth-oauthlib>=1.0.0
+searchconsole>=0.1.7
+st-google-auth>=1.1.0
+python-dotenv>=0.21.0
