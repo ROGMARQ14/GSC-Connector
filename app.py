@@ -67,15 +67,15 @@ def setup_streamlit():
     st.title("📊Google Search Console Connector")
     st.markdown("### 🚀 Lightweight GSC Data Extractor (Max {:,} Rows)".format(MAX_ROWS))
 
-        st.markdown("### 🛠️ Features")
-        st.markdown("""
-        - Multiple search types (web, image, video, etc.)
-        - Flexible date ranges
-        - Custom dimension selection
-        - CSV export
-        - Automatic data formatting
-        """)
-       st.divider()
+    st.markdown("### 🛠️ Features")
+    st.markdown("""
+    - Multiple search types (web, image, video, etc.)
+    - Flexible date ranges
+    - Custom dimension selection
+    - CSV export
+    - Automatic data formatting
+    """)
+    st.divider()
 
 
 def init_session_state():
