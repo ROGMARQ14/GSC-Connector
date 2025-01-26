@@ -58,14 +58,25 @@ def setup_streamlit():
     Configures Streamlit's page settings and displays the app title and markdown information.
     Sets the page layout, title, and markdown content with links and app description.
     """
-    st.set_page_config(page_title="Google Search Console Connector", layout="wide")
-    st.title("Google Search Console Connector | January 2025")
-    st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
-
-    st.markdown(
-       unsafe_allow_html=True
+    st.set_page_config(
+        page_title="Google Search Console Connector",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
-    st.divider()
+    
+    st.title("📊Google Search Console Connector")
+    st.markdown("### 🚀 Lightweight GSC Data Extractor (Max {:,} Rows)".format(MAX_ROWS))
+
+        st.markdown("### 🛠️ Features")
+        st.markdown("""
+        - Multiple search types (web, image, video, etc.)
+        - Flexible date ranges
+        - Custom dimension selection
+        - CSV export
+        - Automatic data formatting
+        """)
+       st.divider()
 
 
 def init_session_state():
@@ -238,7 +249,15 @@ def show_error(e):
     Displays an error message in the Streamlit app.
     Formats and shows the provided error 'e'.
     """
-    st.error(f"An error occurred: {e}")
+    error_message = str(e)
+    st.error(f"""
+    ❌ Error: {error_message}
+    
+    If this persists:
+    1. Check your Google Search Console access
+    2. Try signing out and back in
+    3. Verify your date range selection
+    """)
 
 
 def property_change():
@@ -257,21 +276,30 @@ def show_dataframe(report):
     """
     Shows a preview of the first 100 rows of the report DataFrame in an expandable section.
     """
-    with st.expander("Preview the First 100 Rows"):
-        st.dataframe(report.head(DF_PREVIEW_ROWS))
+    with st.expander("👁️ Preview Data (First {} Rows)".format(DF_PREVIEW_ROWS)):
+        st.dataframe(
+            report.head(DF_PREVIEW_ROWS),
+            use_container_width=True,
+            hide_index=True
+        )
 
 
 def download_csv_link(report):
     """
     Generates and displays a download link for the report DataFrame in CSV format.
     """
-    def to_csv(df):
-        return df.to_csv(index=False, encoding='utf-8-sig')
-
-    csv = to_csv(report)
-    b64_csv = base64.b64encode(csv.encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64_csv}" download="search_console_data.csv">Download CSV File</a>'
-    st.markdown(href, unsafe_allow_html=True)
+    csv = report.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    filename = "gsc_data_{}.csv".format(
+        datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
+    st.download_button(
+        label="📥 Download Full Report as CSV",
+        data=csv,
+        file_name=filename,
+        mime="text/csv",
+        help="Click to download the complete dataset as a CSV file"
+    )
 
 
 # -------------
@@ -301,15 +329,23 @@ def show_property_selector(properties, account):
     Displays a dropdown selector for Google Search Console properties.
     Returns the selected property's webproperty object.
     """
-    selected_property = st.selectbox(
-        "Select a Search Console Property:",
-        properties,
-        index=properties.index(
-            st.session_state.selected_property) if st.session_state.selected_property in properties else 0,
-        key='selected_property_selector',
-        on_change=property_change
+    st.markdown("### 🌐 Select Property")
+    
+    if not properties:
+        st.warning("⚠️ No properties found. Please make sure you have access to Google Search Console properties.")
+        return None
+        
+    property_urls = [prop.url for prop in properties]
+    
+    selected = st.selectbox(
+        "Choose a property:",
+        property_urls,
+        key="selected_property",
+        on_change=property_change,
+        help="Select the website you want to analyze"
     )
-    return account[selected_property]
+    
+    return account[selected]
 
 
 def show_search_type_selector():
@@ -317,11 +353,11 @@ def show_search_type_selector():
     Displays a dropdown selector for choosing the search type.
     Returns the selected search type.
     """
+    st.markdown("### 🔎 Search Type")
     return st.selectbox(
-        "Select Search Type:",
+        "Select search type:",
         SEARCH_TYPES,
-        index=SEARCH_TYPES.index(st.session_state.selected_search_type),
-        key='search_type_selector'
+        help="Choose the type of search data you want to analyze"
     )
 
 
@@ -330,11 +366,11 @@ def show_date_range_selector():
     Displays a dropdown selector for choosing the date range.
     Returns the selected date range option.
     """
+    st.markdown("### 📅 Date Range")
     return st.selectbox(
-        "Select Date Range:",
+        "Select date range:",
         DATE_RANGE_OPTIONS,
-        index=DATE_RANGE_OPTIONS.index(st.session_state.selected_date_range),
-        key='date_range_selector'
+        help="Choose the time period for your data"
     )
 
 
@@ -352,12 +388,14 @@ def show_dimensions_selector(search_type):
     Displays a multi-select box for choosing dimensions based on the selected search type.
     Returns the selected dimensions.
     """
-    available_dimensions = update_dimensions(search_type)
+    st.markdown("### 📊 Dimensions")
+    dimensions = update_dimensions(search_type)
+    
     return st.multiselect(
-        "Select Dimensions:",
-        available_dimensions,
-        default=st.session_state.selected_dimensions,
-        key='dimensions_selector'
+        "Select dimensions:",
+        dimensions,
+        default=["query", "page"],
+        help="Choose the data dimensions you want to include in your report"
     )
 
 
@@ -366,14 +404,25 @@ def show_fetch_data_button(webproperty, search_type, start_date, end_date, selec
     Displays a button to fetch data based on selected parameters.
     Shows the report DataFrame and download link upon successful data fetching.
     """
-    if st.button("Fetch Data"):
-        report = fetch_data_loading(webproperty, search_type, start_date, end_date, selected_dimensions)
-
-        if report is not None and not report.empty:
-            show_dataframe(report)
-            download_csv_link(report)
-        else:
-            st.warning("No data found for the selected parameters.")
+    if st.button("🔄 Fetch Data", help="Click to retrieve your GSC data"):
+        try:
+            with st.spinner("🔄 Fetching data from Google Search Console..."):
+                report = fetch_data_loading(
+                    webproperty,
+                    search_type,
+                    start_date,
+                    end_date,
+                    selected_dimensions
+                )
+            
+            if report is not None and not report.empty:
+                st.success("✅ Data fetched successfully! {} rows retrieved.".format(len(report)))
+                show_dataframe(report)
+                download_csv_link(report)
+            else:
+                st.warning("⚠️ No data found for the selected criteria. Try adjusting your filters.")
+        except Exception as e:
+            show_error(e)
 
 
 # -------------
