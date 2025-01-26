@@ -4,12 +4,13 @@ import base64
 
 # Related third-party imports
 import streamlit as st
+from streamlit_elements import Elements
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 import pandas as pd
 import searchconsole
 
-# Configuration: Set to False for Streamlit Cloud deployment
+# Configuration: Set to True if running locally, False if running on Streamlit Cloud
 IS_LOCAL = False
 
 # Constants
@@ -29,23 +30,13 @@ MAX_ROWS = 1_000_000
 DF_PREVIEW_ROWS = 100
 
 
-# -------------
-# Data Formatting Functions
-# -------------
-
-def format_gsc_data(df):
-    """
-    Formats the Google Search Console data with proper formatting for CTR and Average Position.
-    """
+def format_metrics(df):
+    """Format CTR as percentage and position with 2 decimal places"""
     if not df.empty:
-        # Format CTR as percentage
         if 'ctr' in df.columns:
             df['ctr'] = df['ctr'].apply(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "0.00%")
-        
-        # Format average position to 2 decimal places
         if 'position' in df.columns:
             df['position'] = df['position'].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "0.00")
-    
     return df
 
 
@@ -58,23 +49,12 @@ def setup_streamlit():
     Configures Streamlit's page settings and displays the app title and markdown information.
     Sets the page layout, title, and markdown content with links and app description.
     """
-    st.set_page_config(
-        page_title="Google Search Console Connector",
-        page_icon="📊",
-        layout="wide"
-    )
-    
-    st.title("📊Google Search Console Connector")
-    st.markdown("### 🚀 Lightweight GSC Data Extractor (Max {:,} Rows)".format(MAX_ROWS))
+    st.set_page_config(page_title="✨ Google Search Console  | LeeFoot.co.uk", layout="wide")
 
-    st.markdown("### 🛠️ Features")
-    st.markdown("""
-    - Multiple search types (web, image, video, etc.)
-    - Flexible date ranges
-    - Custom dimension selection
-    - CSV export
-    - Automatic data formatting
-    """)
+    st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
+    st.markdown(
+        unsafe_allow_html=True
+    )
     st.divider()
 
 
@@ -194,7 +174,7 @@ def fetch_gsc_data(webproperty, search_type, start_date, end_date, dimensions, d
 
     try:
         df = query.limit(MAX_ROWS).get().to_dataframe()
-        return format_gsc_data(df)  # Format the data before returning
+        return format_metrics(df)  # Format CTR and position after fetching
     except Exception as e:
         show_error(e)
         return pd.DataFrame()
@@ -248,15 +228,7 @@ def show_error(e):
     Displays an error message in the Streamlit app.
     Formats and shows the provided error 'e'.
     """
-    error_message = str(e)
-    st.error(f"""
-    ❌ Error: {error_message}
-    
-    If this persists:
-    1. Check your Google Search Console access
-    2. Try signing out and back in
-    3. Verify your date range selection
-    """)
+    st.error(f"An error occurred: {e}")
 
 
 def property_change():
@@ -275,30 +247,22 @@ def show_dataframe(report):
     """
     Shows a preview of the first 100 rows of the report DataFrame in an expandable section.
     """
-    with st.expander("👁️ Preview Data (First {} Rows)".format(DF_PREVIEW_ROWS)):
-        st.dataframe(
-            report.head(DF_PREVIEW_ROWS),
-            use_container_width=True,
-            hide_index=True
-        )
+    with st.expander("Preview the First 100 Rows"):
+        st.dataframe(report.head(DF_PREVIEW_ROWS))
 
 
 def download_csv_link(report):
     """
     Generates and displays a download link for the report DataFrame in CSV format.
     """
-    csv = report.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()
-    filename = "gsc_data_{}.csv".format(
-        datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    )
-    st.download_button(
-        label="📥 Download Full Report as CSV",
-        data=csv,
-        file_name=filename,
-        mime="text/csv",
-        help="Click to download the complete dataset as a CSV file"
-    )
+
+    def to_csv(df):
+        return df.to_csv(index=False, encoding='utf-8-sig')
+
+    csv = to_csv(report)
+    b64_csv = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64_csv}" download="search_console_data.csv">Download CSV File</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 
 # -------------
@@ -309,18 +273,11 @@ def show_google_sign_in(auth_url):
     """
     Displays the Google sign-in button and authentication URL in the Streamlit sidebar.
     """
-    st.sidebar.markdown("### Authentication")
-    st.sidebar.info("To use this app, you need to authenticate with your Google Search Console account. Your data remains private and is not stored anywhere.")
-    
-    if st.sidebar.button("🔐 Sign in with Google"):
-        st.sidebar.markdown("### Next Steps:")
-        st.sidebar.markdown("""
-        1. Click the link below to sign in
-        2. Choose your Google account
-        3. Review and accept the permissions
-        4. You'll be redirected back automatically
-        """)
-        st.sidebar.markdown(f'[🔑 Authenticate with Google]({auth_url})', unsafe_allow_html=True)
+    with st.sidebar:
+        if st.button("Sign in with Google"):
+            # Open the authentication URL
+            st.write('Please click the link below to sign in:')
+            st.markdown(f'[Google Sign-In]({auth_url})', unsafe_allow_html=True)
 
 
 def show_property_selector(properties, account):
@@ -328,23 +285,15 @@ def show_property_selector(properties, account):
     Displays a dropdown selector for Google Search Console properties.
     Returns the selected property's webproperty object.
     """
-    st.markdown("### 🌐 Select Property")
-    
-    if not properties:
-        st.warning("⚠️ No properties found. Please make sure you have access to Google Search Console properties.")
-        return None
-        
-    property_urls = [prop.url for prop in properties]
-    
-    selected = st.selectbox(
-        "Choose a property:",
-        property_urls,
-        key="selected_property",
-        on_change=property_change,
-        help="Select the website you want to analyze"
+    selected_property = st.selectbox(
+        "Select a Search Console Property:",
+        properties,
+        index=properties.index(
+            st.session_state.selected_property) if st.session_state.selected_property in properties else 0,
+        key='selected_property_selector',
+        on_change=property_change
     )
-    
-    return account[selected]
+    return account[selected_property]
 
 
 def show_search_type_selector():
@@ -352,11 +301,11 @@ def show_search_type_selector():
     Displays a dropdown selector for choosing the search type.
     Returns the selected search type.
     """
-    st.markdown("### 🔎 Search Type")
     return st.selectbox(
-        "Select search type:",
+        "Select Search Type:",
         SEARCH_TYPES,
-        help="Choose the type of search data you want to analyze"
+        index=SEARCH_TYPES.index(st.session_state.selected_search_type),
+        key='search_type_selector'
     )
 
 
@@ -365,11 +314,11 @@ def show_date_range_selector():
     Displays a dropdown selector for choosing the date range.
     Returns the selected date range option.
     """
-    st.markdown("### 📅 Date Range")
     return st.selectbox(
-        "Select date range:",
+        "Select Date Range:",
         DATE_RANGE_OPTIONS,
-        help="Choose the time period for your data"
+        index=DATE_RANGE_OPTIONS.index(st.session_state.selected_date_range),
+        key='date_range_selector'
     )
 
 
@@ -387,14 +336,12 @@ def show_dimensions_selector(search_type):
     Displays a multi-select box for choosing dimensions based on the selected search type.
     Returns the selected dimensions.
     """
-    st.markdown("### 📊 Dimensions")
-    dimensions = update_dimensions(search_type)
-    
+    available_dimensions = update_dimensions(search_type)
     return st.multiselect(
-        "Select dimensions:",
-        dimensions,
-        default=["query", "page"],
-        help="Choose the data dimensions you want to include in your report"
+        "Select Dimensions:",
+        available_dimensions,
+        default=st.session_state.selected_dimensions,
+        key='dimensions_selector'
     )
 
 
@@ -403,25 +350,12 @@ def show_fetch_data_button(webproperty, search_type, start_date, end_date, selec
     Displays a button to fetch data based on selected parameters.
     Shows the report DataFrame and download link upon successful data fetching.
     """
-    if st.button("🔄 Fetch Data", help="Click to retrieve your GSC data"):
-        try:
-            with st.spinner("🔄 Fetching data from Google Search Console..."):
-                report = fetch_data_loading(
-                    webproperty,
-                    search_type,
-                    start_date,
-                    end_date,
-                    selected_dimensions
-                )
-            
-            if report is not None and not report.empty:
-                st.success("✅ Data fetched successfully! {} rows retrieved.".format(len(report)))
-                show_dataframe(report)
-                download_csv_link(report)
-            else:
-                st.warning("⚠️ No data found for the selected criteria. Try adjusting your filters.")
-        except Exception as e:
-            show_error(e)
+    if st.button("Fetch Data"):
+        report = fetch_data_loading(webproperty, search_type, start_date, end_date, selected_dimensions)
+
+        if report is not None:
+            show_dataframe(report)
+            download_csv_link(report)
 
 
 # -------------
@@ -434,22 +368,6 @@ def main():
     Handles the app setup, authentication, UI components, and data fetching logic.
     """
     setup_streamlit()
-    
-    # Add welcome message and instructions
-    if not st.session_state.get('credentials'):
-        st.markdown("""
-        ## Welcome to the GSC Data Connector! 👋
-        
-        This app allows you to easily fetch and analyze your Google Search Console data.
-        To get started:
-        
-        1. Click the "Sign in with Google" button in the sidebar
-        2. Authorize the app to access your GSC data
-        3. Select your property and customize your report
-        
-        Your data remains private and secure - no data is stored on our servers.
-        """)
-    
     client_config = load_config()
     st.session_state.auth_flow, st.session_state.auth_url = google_auth(client_config)
 
@@ -457,11 +375,8 @@ def main():
     auth_code = query_params.get("code", [None])[0]
 
     if auth_code and not st.session_state.get('credentials'):
-        with st.spinner('Completing authentication...'):
-            st.session_state.auth_flow.fetch_token(code=auth_code)
-            st.session_state.credentials = st.session_state.auth_flow.credentials
-        st.success('Successfully authenticated! You can now access your GSC data.')
-        st.rerun()
+        st.session_state.auth_flow.fetch_token(code=auth_code)
+        st.session_state.credentials = st.session_state.auth_flow.credentials
 
     if not st.session_state.get('credentials'):
         show_google_sign_in(st.session_state.auth_url)
