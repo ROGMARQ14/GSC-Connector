@@ -9,8 +9,7 @@ from googleapiclient.discovery import build
 import pandas as pd
 import searchconsole
 
-# Configuration: Set to True if running locally, False if running on Streamlit Cloud
-# IS_LOCAL = True
+# Configuration: Set to False for Streamlit Cloud deployment
 IS_LOCAL = False
 
 # Constants
@@ -59,11 +58,13 @@ def setup_streamlit():
     Configures Streamlit's page settings and displays the app title and markdown information.
     Sets the page layout, title, and markdown content with links and app description.
     """
-    st.set_page_config(page_title="✨ Google Search Console Connector")
+    st.set_page_config(page_title="Google Search Console Connector", layout="wide")
+    st.title("Google Search Console Connector | January 2025")
     st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
 
     st.markdown(
-         )
+       unsafe_allow_html=True
+    )
     st.divider()
 
 
@@ -281,10 +282,18 @@ def show_google_sign_in(auth_url):
     """
     Displays the Google sign-in button and authentication URL in the Streamlit sidebar.
     """
-    with st.sidebar:
-        if st.button("Sign in with Google"):
-            st.write('Please click the link below to sign in:')
-            st.markdown(f'[Google Sign-In]({auth_url})', unsafe_allow_html=True)
+    st.sidebar.markdown("### Authentication")
+    st.sidebar.info("To use this app, you need to authenticate with your Google Search Console account. Your data remains private and is not stored anywhere.")
+    
+    if st.sidebar.button("🔐 Sign in with Google"):
+        st.sidebar.markdown("### Next Steps:")
+        st.sidebar.markdown("""
+        1. Click the link below to sign in
+        2. Choose your Google account
+        3. Review and accept the permissions
+        4. You'll be redirected back automatically
+        """)
+        st.sidebar.markdown(f'[🔑 Authenticate with Google]({auth_url})', unsafe_allow_html=True)
 
 
 def show_property_selector(properties, account):
@@ -377,6 +386,22 @@ def main():
     Handles the app setup, authentication, UI components, and data fetching logic.
     """
     setup_streamlit()
+    
+    # Add welcome message and instructions
+    if not st.session_state.get('credentials'):
+        st.markdown("""
+        ## Welcome to the GSC Data Connector! 👋
+        
+        This app allows you to easily fetch and analyze your Google Search Console data.
+        To get started:
+        
+        1. Click the "Sign in with Google" button in the sidebar
+        2. Authorize the app to access your GSC data
+        3. Select your property and customize your report
+        
+        Your data remains private and secure - no data is stored on our servers.
+        """)
+    
     client_config = load_config()
     st.session_state.auth_flow, st.session_state.auth_url = google_auth(client_config)
 
@@ -384,8 +409,11 @@ def main():
     auth_code = query_params.get("code", [None])[0]
 
     if auth_code and not st.session_state.get('credentials'):
-        st.session_state.auth_flow.fetch_token(code=auth_code)
-        st.session_state.credentials = st.session_state.auth_flow.credentials
+        with st.spinner('Completing authentication...'):
+            st.session_state.auth_flow.fetch_token(code=auth_code)
+            st.session_state.credentials = st.session_state.auth_flow.credentials
+        st.success('Successfully authenticated! You can now access your GSC data.')
+        st.rerun()
 
     if not st.session_state.get('credentials'):
         show_google_sign_in(st.session_state.auth_url)
