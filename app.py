@@ -64,13 +64,7 @@ def setup_streamlit():
     st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
 
     st.markdown(
-        """
-        <p>
-            Created by <a href="https://twitter.com/LeeFootSEO" target="_blank">LeeFootSEO</a> |
-            <a href="https://leefoot.co.uk" target="_blank">More Apps & Scripts on my Website</a>
-        """,
-        unsafe_allow_html=True
-    )
+         )
     st.divider()
 
 
