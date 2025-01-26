@@ -1,0 +1,6 @@
+streamlit>=1.24.0
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.86.0
+pandas>=1.5.3
+searchconsole>=0.0.2
+streamlit-elements>=0.1.0
