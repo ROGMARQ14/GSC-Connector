@@ -88,20 +88,43 @@ def load_config():
     Loads the Google API client configuration from Streamlit secrets.
     Returns a dictionary with the client configuration for OAuth.
     """
-    client_config = {
-        "installed": {
-            "client_id": str(st.secrets["installed"]["client_id"]),
-            "client_secret": str(st.secrets["installed"]["client_secret"]),
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://accounts.google.com/o/oauth2/token",
-            "redirect_uris": (
-                ["http://localhost:8501"]
-                if IS_LOCAL
-                else [str(st.secrets["installed"]["redirect_uris"][0])]
-            ),
+    try:
+        client_config = {
+            "installed": {
+                "client_id": str(st.secrets["installed"]["client_id"]),
+                "client_secret": str(st.secrets["installed"]["client_secret"]),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://accounts.google.com/o/oauth2/token",
+                "redirect_uris": (
+                    ["http://localhost:8501"]
+                    if IS_LOCAL
+                    else [str(st.secrets["installed"]["redirect_uris"][0])]
+                ),
+            }
         }
-    }
-    return client_config
+        return client_config
+    except KeyError:
+        st.error("""
+        ### ⚠️ Missing Google OAuth Credentials
+        
+        To use this app, you need to add your Google OAuth credentials to your Streamlit secrets.
+        
+        1. Create a `.streamlit/secrets.toml` file in your app directory
+        2. Add the following configuration:
+        ```toml
+        [installed]
+        client_id = "YOUR_CLIENT_ID"
+        client_secret = "YOUR_CLIENT_SECRET"
+        redirect_uris = ["YOUR_REDIRECT_URI"]
+        ```
+        
+        If running locally:
+        - Set redirect_uris to ["http://localhost:8501"]
+        
+        If running on Streamlit Cloud:
+        - Set redirect_uris to ["https://your-app-url.streamlit.app"]
+        """)
+        st.stop()
 
 
 def init_oauth_flow(client_config):
@@ -170,7 +193,14 @@ def fetch_gsc_data(webproperty, search_type, start_date, end_date, dimensions, d
 
     try:
         df = query.limit(MAX_ROWS).get().to_dataframe()
-        return format_metrics(df)  # Format CTR and position after fetching
+        
+        # Format CTR and position
+        if 'ctr' in df.columns:
+            df['ctr'] = df['ctr'].apply(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "0.00%")
+        if 'position' in df.columns:
+            df['position'] = df['position'].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "0.00")
+            
+        return df
     except Exception as e:
         show_error(e)
         return pd.DataFrame()
