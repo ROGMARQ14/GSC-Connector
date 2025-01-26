@@ -77,7 +77,7 @@ def authenticate_gsc():
             try:
                 account = searchconsole.authenticate(
                     client_config='client_secrets.json',
-                    credentials='credentials.json'
+                    serialize='credentials.json'
                 )
                 st.session_state.account = account
                 st.success("✅ Successfully authenticated!")
