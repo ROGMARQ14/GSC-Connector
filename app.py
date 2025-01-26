@@ -61,8 +61,7 @@ def setup_streamlit():
     st.set_page_config(
         page_title="Google Search Console Connector",
         page_icon="📊",
-        layout="wide",
-        initial_sidebar_state="expanded"
+        layout="wide"
     )
     
     st.title("📊Google Search Console Connector")
