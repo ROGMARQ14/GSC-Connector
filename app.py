@@ -51,9 +51,6 @@ def setup_streamlit():
     st.set_page_config(page_title="✨ Google Search Console  | LeeFoot.co.uk", layout="wide")
 
     st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
-    st.markdown(
-        unsafe_allow_html=True
-    )
     st.divider()
 
 
