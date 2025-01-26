@@ -32,7 +32,8 @@ def setup_streamlit():
     """
     Configures Streamlit's page settings and displays the app title and markdown information.
     """
-    st.set_page_config(page_title="✨ Google Search Console  | LeeFoot.co.uk", layout="wide")
+    st.set_page_config(page_title="Google Search Console Connector", layout="wide")
+    st.title("Google Search Console Connector")
     st.markdown(f"### Lightweight GSC Data Extractor. (Max {MAX_ROWS:,} Rows)")
     st.divider()
 
@@ -76,8 +77,7 @@ def authenticate_gsc():
             try:
                 account = searchconsole.authenticate(
                     client_config='client_secrets.json',
-                    credentials='credentials.json',
-                    open_browser=True
+                    credentials='credentials.json'
                 )
                 st.session_state.account = account
                 st.success("✅ Successfully authenticated!")
